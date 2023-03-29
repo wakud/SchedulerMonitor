@@ -1,0 +1,95 @@
+﻿@{
+    ViewData["Title"] = "InformationBoard";
+}
+<link rel="stylesheet" href="~/Content/Site.css" asp-append-version="true" />
+<video id="video" width="1" height="1" controls="controls" muted="muted" autoplay="autoplay" loop="loop">
+    <source src="~/Content/Video/plug_monitor.mp4" type='video/mp4;'>
+</video>
+
+<div class="wrapper" id="full">
+    <div class="text-center mt-1 name">
+        <h1>@Model.Name</h1>
+    </div>
+
+    <div id="dp"></div>
+</div>
+
+<script>
+    var timeReload = @Model.TimeReloadPage;  //час в хвилинах перезавантаження сторінки
+    timeReload = timeReload * 60;
+    var timenow = 0;
+
+    function post(url, data) {
+        return new Promise((resolve, reject) => {
+            $.post(url, data)
+                .done(resolve)
+                .catch(reject);         
+
+        });
+    }
+
+    function isReload() {
+        timenow++;
+        if (timenow >= timeReload) {
+            timenow = 0;
+            document.location.reload();
+        }
+    }
+
+    function fullScreen(element) {
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitrequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullscreen) {
+            element.mozRequestFullScreen();
+        }
+    }
+
+    //бібліотека виводу графіку
+    document.addEventListener('DOMContentLoaded',async function () {
+        const dp = new DayPilot.Calendar("dp", {
+            locale: "ua-ua",
+            viewType: "Day",
+            headerDateFormat: "dddd d MMMM",
+            businessBeginsHour: @Model.Start,
+            businessEndsHour: @Model.End,
+            timeRangeSelectedHandling: "Disabled",
+            eventDeleteHandling: "Disabled",
+            eventMoveHandling: "Disabled",
+            eventResizeHandling: "Disabled",
+            eventClickHandling: "Disabled",
+            eventHoverHandling: "Disabled",
+        });
+        dp.init();
+
+        const events = [];
+
+        var data = await post('@Url.Content("Home/GetList")', { pointId:@Model.PointID});
+        if (data) {
+            Array.from(data).forEach(x => {
+                events.push({
+                    "id": x.Id,
+                    "start": x.StartStr,
+                    "end": x.EndStr,
+                    "text": x.Performer + x.ArticleName + x.Length + x.PersonName + x.Description
+                });
+            })
+        }
+
+        dp.update({ events });
+
+        //повноекранний режим
+        try {
+            document.querySelector('html').requestFullscreen();
+        }
+        catch (err) { }
+
+        //перезавантаження сторінки
+        var t = setInterval(isReload, 1000);
+
+        //Запуск видео через секунду после открытия, данный функционал необходим для того,
+        //что бы на Android планшетах не выключался экран
+        setTimeout(() => document.getElementById('video').play(), 1000);
+    });
+</script>
